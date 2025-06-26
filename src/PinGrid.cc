@@ -1,11 +1,12 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
-//   CellGrid.cc
+//   PinGrid.cc
 //
-//   The definition of CellGrid class.
+//   The definition of PinGrid class.
 //
 //   Authors: Hoyong Jeong (hoyong5419@korea.ac.kr)
 //            Kyungmin Lee (  railroad@korea.ac.kr)
+//            Changi Jeong (  jchg3876@korea.ac.kr)
 //
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -14,11 +15,12 @@
 //------------------------------------------------------------------------------
 // Headers
 //------------------------------------------------------------------------------
-#include "CellGrid.hh"
 #include <stdexcept>
 #include <sstream>
 #include <iomanip>
 #include <nlohmann/json.hpp>
+
+#include "PinGrid.hh"
 
 
 
@@ -35,7 +37,7 @@ using json = nlohmann::json;
 //------------------------------------------------
 // Default
 //------------------------------------------------
-CellGrid::CellGrid() : rows(16), cols(16), cells(rows * cols, false)
+PinGrid::PinGrid() : mRows(16), mCols(16), mPins(mRows * mCols, false)
 {
 }
 
@@ -43,7 +45,7 @@ CellGrid::CellGrid() : rows(16), cols(16), cells(rows * cols, false)
 //------------------------------------------------
 // Custom size
 //------------------------------------------------
-CellGrid::CellGrid(int r, int c) : rows(r), cols(c), cells(r * c, false)
+PinGrid::PinGrid(unsigned short int r, unsigned short int c) : mRows(r), mCols(c), mPins(r * c, false)
 {
 }
 
@@ -55,49 +57,50 @@ CellGrid::CellGrid(int r, int c) : rows(r), cols(c), cells(r * c, false)
 //------------------------------------------------
 // Initialize
 //------------------------------------------------
-void CellGrid::Initialize(bool value)
+void PinGrid::Initialize(bool value)
 {
-	std::fill(cells . begin(), cells . end(), value);
+	// Fill member vector pins with given value
+	std::fill(mPins . begin(), mPins . end(), value);
 }
 
 
 //------------------------------------------------
-// Get cell state
+// Get pin state
 //------------------------------------------------
 // By (row, column)
-bool CellGrid::Get(int row, int col) const
+bool PinGrid::Get(unsigned short int row, unsigned short int col) const
 {
-	if ( !IsValidCoord(row, col) ) throw std::out_of_range("Invalid row or column");
+	if ( !IsValidCoord(row, col) ) throw std::out_of_range("[kumtdd] PinGrid::Get: Invalid row or column");
 
-	return cells[row * cols + col];
+	return mPins[row * mCols + col];
 }
 
 // By index
-bool CellGrid::Get(int index) const
+bool PinGrid::Get(unsigned short int index) const
 {
-	if ( !IsValidIndex(index) ) throw std::out_of_range("Invalid index");
+	if ( !IsValidIndex(index) ) throw std::out_of_range("[kumtdd] PinGrid::Get: Invalid index");
 
-	return cells[index];
+	return mPins[index];
 }
 
 
 //------------------------------------------------
-// Set cell state
+// Set pin state
 //------------------------------------------------
 // By (row, column)
-void CellGrid::Set(int row, int col, bool value)
+void PinGrid::Set(unsigned short int row, unsigned short int col, bool value)
 {
-	if ( !IsValidCoord(row, col) ) throw std::out_of_range("Invalid row or column");
+	if ( !IsValidCoord(row, col) ) throw std::out_of_range("[kumtdd] PinGrid::Set: invalid row or column");
 
-	cells[row * cols + col] = value;
+	mPins[row * mCols + col] = value;
 }
 
 // By index
-void CellGrid::Set(int index, bool value)
+void PinGrid::Set(unsigned short int index, bool value)
 {
-	if ( !IsValidIndex(index) ) throw std::out_of_range("Invalid index");
+	if ( !IsValidIndex(index) ) throw std::out_of_range("[kumtdd] PinGrid::Set: Invalid index");
 
-	cells[index] = value;
+	mPins[index] = value;
 }
 
 
@@ -105,35 +108,36 @@ void CellGrid::Set(int index, bool value)
 // JSON handling
 //------------------------------------------------
 // Vector to JSON
-std::string CellGrid::ToJSONString() const
+std::string PinGrid::ToJSONString() const
 {
 	json j;
-	j["rows"]  = rows;
-	j["cols"]  = cols;
-	j["cells"] = cells;
+	j["rows"] = mRows;
+	j["cols"] = mCols;
+	j["pins"] = mPins;
 
 	return j . dump();
 }
 
 // JSON to vector
-bool CellGrid::FromJSONString(const std::string& jsonStr)
+bool PinGrid::FromJSONString(const std::string& jsonStr)
 {
-	try {
+	try
+	{
 		json j = json::parse(jsonStr);
-		if (!j.contains("rows") || !j.contains("cols") || !j.contains("cells"))
-			return false;
+		if ( !j . contains("rows") || !j . contains("cols") || !j . contains("pins") ) return false;
 
-		int r = j["rows"];
-		int c = j["cols"];
-		std::vector<bool> newCells = j["cells"].get<std::vector<bool>>();
-		if ((int)newCells.size() != r * c)
-			return false;
+		unsigned short int r = j["rows"];
+		unsigned short int c = j["cols"];
+		std::vector<bool> newPins = j["pins"].get<std::vector<bool>>();
+		if ( (unsigned short int) newPins . size() != r * c ) return false;
 
-		rows = r;
-		cols = c;
-		cells = std::move(newCells);
+		mRows = r;
+		mCols = c;
+		mPins = std::move(newPins);
 		return true;
-	} catch (...) {
+	}
+	catch ( ... )
+	{
 		return false;
 	}
 }
@@ -142,11 +146,11 @@ bool CellGrid::FromJSONString(const std::string& jsonStr)
 //------------------------------------------------
 // Print
 //------------------------------------------------
-void CellGrid::Print(std::ostream& os) const
+void PinGrid::Print(std::ostream& os) const
 {
-	for ( int i = 0; i < rows; ++i )
+	for ( unsigned short int i = 0; i < mRows; i++ )
 	{
-		for ( int j = 0; j < cols; ++j )
+		for ( unsigned short int j = 0; j < mCols; j++ )
 		{
 			os << (Get(i, j) ? "1" : "0");
 		}
@@ -158,12 +162,12 @@ void CellGrid::Print(std::ostream& os) const
 //------------------------------------------------
 // Inspectors
 //------------------------------------------------
-bool CellGrid::IsValidIndex(int index) const
+bool PinGrid::IsValidIndex(unsigned short int index) const
 {
-	return index >= 0 && index < rows * cols;
+	return index >= 0 && index < mRows * mCols;
 }
 
-bool CellGrid::IsValidCoord(int row, int col) const
+bool PinGrid::IsValidCoord(unsigned short int row, unsigned short int col) const
 {
-	return row >= 0 && row < rows && col >= 0 && col < cols;
+	return row >= 0 && row < mRows && col >= 0 && col < mCols;
 }

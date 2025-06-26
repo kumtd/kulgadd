@@ -20,7 +20,7 @@
 // Headers
 //------------------------------------------------------------------------------
 #include <cstddef>
-#include "CellGrid.hh"
+#include "PinGrid.hh"
 
 
 
@@ -29,7 +29,7 @@
 //------------------------------------------------------------------------------
 class SerialManager
 {
-public:
+	public:
 	//------------------------------------------------
 	// Constructors and destructors
 	//------------------------------------------------
@@ -47,10 +47,11 @@ public:
 	void CloseSerial();
 
 	// Send ON/OFF
-	bool SetCellStat(int cell, bool val);
+	bool SetPinStat(unsigned short int index, bool val);
+	bool SetPinStat(unsigned short int row, unsigned short int col, bool val);
 
 	// Ask for all states and parse
-	bool GetCellStat(CellGrid& grid);
+	bool GetPinStat(PinGrid& grid);
 
 	// Serial IO
 	ssize_t WriteLine(const char* line);
@@ -59,6 +60,6 @@ public:
 	std::string ReadLine();
 
 
-private:
+	private:
 	int fd;
 };

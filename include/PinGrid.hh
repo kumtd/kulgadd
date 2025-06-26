@@ -1,11 +1,12 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
-//   CellGrid.hh
+//   PinGrid.hh
 //
-//   This class stores the state of each LGAD cell.
+//   This class stores the state of each switch pin.
 //
 //   Authors: Hoyong Jeong (hoyong5419@korea.ac.kr)
 //            Kyungmin Lee (  railroad@korea.ac.kr)
+//            Changi Jeong (  jchg3876@korea.ac.kr)
 //
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -27,17 +28,17 @@
 //------------------------------------------------------------------------------
 // Class declaration
 //------------------------------------------------------------------------------
-class CellGrid
+class PinGrid
 {
-public:
+	public:
 	//------------------------------------------------
 	// Constructors and destructors
 	//------------------------------------------------
-	// Default constructor: 16x16
-	CellGrid();
+	// Default constructor: 16 by 16
+	PinGrid();
 
 	// Custom size
-	CellGrid(int rows, int cols);
+	PinGrid(unsigned short int rows, unsigned short int cols);
 
 
 	//------------------------------------------------
@@ -46,13 +47,13 @@ public:
 	// Init
 	void Initialize(bool value = false);
 
-	// Get cell state
-	bool Get(int row, int col) const;
-	bool Get(int index) const;
+	// Get pin state
+	bool Get(unsigned short int index)                       const;
+	bool Get(unsigned short int row, unsigned short int col) const;
 
-	// Set cell state
-	void Set(int row, int col, bool value);
-	void Set(int index, bool value);
+	// Set pin state
+	void Set(unsigned short int index, bool value);
+	void Set(unsigned short int row, unsigned short int col, bool value);
 
 	// JSON handling
 	std::string ToJSONString() const;
@@ -60,17 +61,18 @@ public:
 
 	void Print(std::ostream& os = std::cout) const;
 
-	int GetRows()  const { return rows;        }
-	int GetCols()  const { return cols;        }
-	int GetTotal() const { return rows * cols; }
+	// Get grid size
+	unsigned short int GetRows()  const { return mRows;         }
+	unsigned short int GetCols()  const { return mCols;         }
+	unsigned short int GetTotal() const { return mRows * mCols; }
 
 
-private:
-	int rows;
-	int cols;
-	std::vector<bool> cells;
+	private:
+	unsigned short int mRows;
+	unsigned short int mCols;
+	std::vector<bool> mPins;
 
 	// Inspectors
-	bool IsValidIndex(int index) const;
-	bool IsValidCoord(int row, int col) const;
+	bool IsValidCoord(unsigned short int row, unsigned short int col) const;
+	bool IsValidIndex(unsigned short int index)                       const;
 };

@@ -115,11 +115,11 @@ void SerialManager::CloseSerial()
 //------------------------------------------------
 // Send ON/OFF
 //------------------------------------------------
-bool SerialManager::SetCellStat(int cell, bool val)
+bool SerialManager::SetPinStat(unsigned short int index, bool val)
 {
 	if ( fd < 0 ) return false;
 	char cmd[32];
-	snprintf(cmd, sizeof(cmd), "%s %d", val ? "ON" : "OFF", cell);
+	snprintf(cmd, sizeof(cmd), "%s %d", val ? "ON" : "OFF", index);
 	if ( WriteLine(cmd) < 0 ) return false;
 
 	char response[64];
@@ -128,7 +128,7 @@ bool SerialManager::SetCellStat(int cell, bool val)
 
 	// Expecting response like "turning ON n" or "turning OFF n"
 	char expected[32];
-	snprintf(expected, sizeof(expected), "turning %s %d", val ? "ON" : "OFF", cell);
+	snprintf(expected, sizeof(expected), "turning %s %d", val ? "ON" : "OFF", index);
 	
 	return (strncmp(response, expected, strlen(expected)) == 0);
 }
@@ -137,7 +137,7 @@ bool SerialManager::SetCellStat(int cell, bool val)
 //------------------------------------------------
 // Ask for state and parse
 //------------------------------------------------
-bool SerialManager::GetCellStat(CellGrid& grid)
+bool SerialManager::GetPinStat(PinGrid& grid)
 {
 	if ( fd < 0 ) return false;
 

@@ -19,6 +19,7 @@
 #include <getopt.h>
 #include <string.h>
 
+#include "global.hh"
 #include "SerialManager.hh"
 
 
@@ -26,13 +27,14 @@
 //------------------------------------------------------------------------------
 // Global variables
 //------------------------------------------------------------------------------
-enum ExitCode
+enum exit_code
 {
 	SUCCESS           =   0,
 	TERM_SIGNAL       =   1,
 	ERROR_SERIAL_CONN =   2,
 	ERROR_UNKNOWN     = 100
 };
+unsigned short int gVerbose = 0;
 
 
 
@@ -56,8 +58,7 @@ int main(int argc, char **argv)
 	unsigned short int flag_s = 0; // switch device
 
 	// Option containers
-	unsigned short int verbose = 0;
-	char* dev_switch = NULL;
+	char* dev_switch = "/dev/ttyACM0";
 
 	// Option dictionary
 	const char* const short_options = "hv:s:";
@@ -82,7 +83,7 @@ int main(int argc, char **argv)
 
 			case 'v':
 				flag_v = 1;
-				verbose = atoi(optarg);
+				gVerbose = atoi(optarg);
 				break;
 
 			case 's':
@@ -106,6 +107,9 @@ int main(int argc, char **argv)
 	//------------------------------------------------
 	// Option inspection
 	//------------------------------------------------
+	// Need to check whether switch device exists and it's pi pico. Let's make it later.
+	// Also, currently the default serial device is hard-coded as /dev/ttyACM0,
+	// but later will be searched automatically by finding raspberry pi pico
 
 
 
@@ -116,32 +120,14 @@ int main(int argc, char **argv)
 	SerialManager serial;
 
 	// Open serial connection
-	if ( flag_s )
+	if ( !serial . Init(dev_switch) )
 	{
-		if ( !serial . Init(dev_switch) )
-		{
-			std::cerr << "[kumtdd] Failed to open serial port " << dev_switch << std::endl;
-			return ERROR_SERIAL_CONN;
-		}
-		else
-		{
-			std::cout << "[kumtdd] Open serial port " << dev_switch << std::endl;
-		}
-		
+		std::cerr << "[kumtdd] Failed to open serial port " << dev_switch << std::endl;
+		return ERROR_SERIAL_CONN;
 	}
 	else
 	{
-		// Currently the serial device is hard-coded,
-		// but later will be searched automatically by finding raspberry pi pico
-		if ( !serial . Init("/dev/ttyACM0") )
-		{
-			std::cerr << "[kumtdd] Failed to open serial port /det/ttyACM0" << std::endl;
-			return ERROR_SERIAL_CONN;
-		}
-		else
-		{
-			std::cout << "[kumtdd] Open serial port /det/ttyACM0" << std::endl;
-		}
+		std::cout << "[kumtdd] Open serial port " << dev_switch << std::endl;
 	}
 
 
@@ -165,6 +151,6 @@ void print_help()
 	std::cout << "  kumtdd --verbose 1  # Execute the daemon with verbose level 1" << std::endl;
 	std::cout << std::endl;
 	std::cout << "Options:" << std::endl;
-	std::cout << "  -v, --verbose  Set verbose level"                                                << std::endl;
-	std::cout << "  -s, --switch   Manually designate switching matrix controller, that is, pi pico" << std::endl;
+	std::cout << "  -v, --verbose  Set verbose level"                              << std::endl;
+	std::cout << "  -s, --switch   Manually designate switching matrix controller" << std::endl;
 }
