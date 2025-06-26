@@ -1,0 +1,18 @@
+1. Monitor: `cat /dev/ttyACM0`
+
+2. Get pin status
+  - `echo "PINSTAT 0" > /dev/ttyACM0`
+  - `echo "PINSTAT 1" > /dev/ttyACM0`
+  - ...
+  - `echo "PINSTAT 15" > /dev/ttyACM0`
+  - `echo "PINSTAT ALL" > /dev/ttyACM0`
+
+3. Set pin status
+  - `echo "ON 0" > /dev/ttyACM0`
+  - `echo "OFF 0" > /dev/ttyACM0`
+  - `echo "ON 1" > /dev/ttyACM0`
+  - `echo "OFF 1" > /dev/ttyACM0`
+  - ...
+  - `echo "ON 255" > /dev/ttyACM0`
+  - `echo "OFF 255" > /dev/ttyACM0`
+
