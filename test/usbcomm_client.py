@@ -56,7 +56,8 @@ def main():
 
     comm = Usbcomm()
     port = comm.findpico()
-    comm.connect(port[0]) 
+#    comm.connect(port[0]) 
+    comm.connect("/dev/ttyACM0") 
 
     data = ' '.join(sys.argv[1:])
     print('Send ', data) 

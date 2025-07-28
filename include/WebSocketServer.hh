@@ -1,8 +1,8 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
-//   SerialManager.hh
+//   WebSocketServer.hh
 //
-//   This class opens serial port, sends commands, and handles response.
+//   Web socket server class.
 //
 //   Authors: Hoyong Jeong (hoyong5419@korea.ac.kr)
 //            Kyungmin Lee (  railroad@korea.ac.kr)
@@ -19,55 +19,68 @@
 //------------------------------------------------------------------------------
 // Headers
 //------------------------------------------------------------------------------
-#include <string>
 #include <thread>
-#include <mutex>
 #include <atomic>
-#include <optional>
+#include <mutex>
+#include <unordered_set>
+#include <string>
+
+#include "global.hh"
+#include "SerialManager.hh"
+#include "PinGrid.hh"
+
+
+
+//------------------------------------------------------------------------------
+// Forward declaration of structs
+// These are to save session data.
+//------------------------------------------------------------------------------
+struct lws;
+struct lws_context;
 
 
 
 //------------------------------------------------------------------------------
 // Class declaration
 //------------------------------------------------------------------------------
-class SerialManager
+class WebSocketServer
 {
 	public:
 	//----------------------------------------------------------
 	// Constructors & destructor
 	//----------------------------------------------------------
-	SerialManager();
-	SerialManager(const std::string& dev);
-	~SerialManager();
+	WebSocketServer(SerialManager* serial, PinGrid* grid);
+	~WebSocketServer();
 
 
 	//----------------------------------------------------------
 	// Public methods
 	//----------------------------------------------------------
-	bool Connect();
-	bool WriteLine(const std::string& line);
-	std::optional<std::string> GetBufferedResponse();
+	bool Start(int port = 9000);
+	void Stop();
 
-	// Send ON/OFF
-	bool SetPinStat(unsigned short int index, bool val);
-	bool SetPinStat(unsigned short int row, unsigned short int col, bool val);
+	//----------------------------------------------------------
+	// Private methods
+	//----------------------------------------------------------
+	void ServerLoop();
 
+	void OnClientConnected(lws* wsi);
+	void OnClientDisconnected(lws* wsi);
+	void OnClientMessage(lws* wsi, const std::string& msg);
+	void BroadcastState();
+	void SendToClient(lws* wsi, const std::string& msg);
 
 	private:
 	//----------------------------------------------------------
 	// Private members
 	//----------------------------------------------------------
-	std::string serialDev;
-	int serialFd = -1;
-	std::thread monitorThread;
-	std::mutex bufferMutex;
-	std::string responseBuffer;
-	std::atomic<bool> isConnected{false};
+	std::thread serverThread;
+	std::atomic<bool> isRunning{false};
+	lws_context* context = nullptr;
+	
+	SerialManager* serial;
+	PinGrid* pinGrid;
 
-
-	//----------------------------------------------------------
-	// Private methods
-	//----------------------------------------------------------
-	void MonitorSerial();
-	bool SetupSerialPort(int fd);
+	std::mutex clientMutex;
+	std::unordered_set<lws*> clients;  // active client connections
 };

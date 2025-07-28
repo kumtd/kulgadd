@@ -18,9 +18,12 @@
 #include <iostream>
 #include <getopt.h>
 #include <string.h>
+#include <csignal>
 
 #include "global.hh"
 #include "SerialManager.hh"
+#include "PinGrid.hh"
+#include "WebSocketServer.hh"
 
 
 
@@ -46,21 +49,44 @@ void print_help();
 
 
 //------------------------------------------------------------------------------
+// Signal handler
+//------------------------------------------------------------------------------
+std::atomic<bool> terminateRequested = false;
+void signalHandler(int sig)
+{
+	terminateRequested = true;
+}
+
+
+
+//------------------------------------------------------------------------------
 // main
 //------------------------------------------------------------------------------
 int main(int argc, char **argv)
 {
-	//------------------------------------------------
+	//----------------------------------------------------------
+	// Signal handler 
+	//----------------------------------------------------------
+	std::signal(SIGINT, signalHandler);
+
+
+	//----------------------------------------------------------
 	// Read options
-	//------------------------------------------------
+	//----------------------------------------------------------
+	//--------------------------------------
 	// Options flags
+	//--------------------------------------
 	unsigned short int flag_v = 0; // verbose
 	unsigned short int flag_s = 0; // switch device
 
+	//--------------------------------------
 	// Option containers
+	//--------------------------------------
 	char* dev_switch = "/dev/ttyACM0";
 
+	//--------------------------------------
 	// Option dictionary
+	//--------------------------------------
 	const char* const short_options = "hv:s:";
 	const struct option long_options[] = {
 		{"help"    , 0, NULL, 'h'},
@@ -69,7 +95,9 @@ int main(int argc, char **argv)
 		{NULL      , 0, NULL,   0}
 	};
 
+	//--------------------------------------
 	// Read options
+	//--------------------------------------
 	int opt;
 	do
 	{
@@ -104,36 +132,69 @@ int main(int argc, char **argv)
 	} while ( opt != -1 );
 
 
-	//------------------------------------------------
+	//----------------------------------------------------------
 	// Option inspection
-	//------------------------------------------------
+	//----------------------------------------------------------
 	// Need to check whether switch device exists and it's pi pico. Let's make it later.
 	// Also, currently the default serial device is hard-coded as /dev/ttyACM0,
 	// but later will be searched automatically by finding raspberry pi pico
 
 
-
-	//------------------------------------------------
+	//----------------------------------------------------------
 	// Open serial
-	//------------------------------------------------
+	//----------------------------------------------------------
+	//--------------------------------------
 	// Define serial manager
-	SerialManager serial;
+	//--------------------------------------
+	SerialManager* serialManager = new SerialManager(dev_switch);
 
+	//--------------------------------------
 	// Open serial connection
-	if ( !serial . Init(dev_switch) )
+	//--------------------------------------
+	if ( !serialManager -> Connect() )
 	{
-		std::cerr << "[kumtdd] Failed to open serial port " << dev_switch << std::endl;
+		std::cerr << "[kumtdd::main] Failed to open serial port " << dev_switch << std::endl;
 		return ERROR_SERIAL_CONN;
 	}
 	else
 	{
-		std::cout << "[kumtdd] Open serial port " << dev_switch << std::endl;
+		std::cout << "[kumtdd::main] Open serial port " << dev_switch << std::endl;
 	}
 
 
-	//--------------------------------------------------
+	//----------------------------------------------------------
+	// Define pin grid
+	//----------------------------------------------------------
+	PinGrid* pinGrid = new PinGrid();
+
+
+	//----------------------------------------------------------
+	// Websocket 
+	//----------------------------------------------------------
+	WebSocketServer* server;
+	try
+	{
+		server = new WebSocketServer(serialManager, pinGrid);
+		server -> Start();
+		while ( ! terminateRequested )
+		{
+			std::this_thread::sleep_for(std::chrono::milliseconds(100));
+		}
+	}
+	catch (const std::exception& e)
+	{
+		std::cerr << "[kumtdd::main] Fatal error: " << e . what() << std::endl;
+		return 1;
+	}
+
+
+	//----------------------------------------------------------
 	// Finalize
-	//--------------------------------------------------
+	//----------------------------------------------------------
+	server -> Stop();
+	delete server;
+	delete pinGrid;
+	delete serialManager;
 	return SUCCESS;
 }
 

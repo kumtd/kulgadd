@@ -16,3 +16,5 @@
   - `echo "ON 255" > /dev/ttyACM0`
   - `echo "OFF 255" > /dev/ttyACM0`
 
+4. To reset pico,
+`mpremote reset`

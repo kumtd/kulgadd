@@ -1,0 +1,7 @@
+Want to change pico firmware
+
+mpremote ls
+mpremote cp :main.py .
+vi main.py
+mpremote cp main.py :
+mpremote reset

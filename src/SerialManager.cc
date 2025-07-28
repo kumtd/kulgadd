@@ -6,6 +6,7 @@
 //
 //   Authors: Hoyong Jeong (hoyong5419@korea.ac.kr)
 //            Kyungmin Lee (  railroad@korea.ac.kr)
+//            Changi Jeong (  jchg3876@korea.ac.kr)
 //
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -14,197 +15,281 @@
 //------------------------------------------------------------------------------
 // Headers
 //------------------------------------------------------------------------------
+#include "global.hh"
 #include "SerialManager.hh"
+
 #include <fcntl.h>
-#include <termios.h>
 #include <unistd.h>
+#include <termios.h>
 #include <cstring>
-#include <cstdio>
-#include <sstream>
+#include <iostream>
 
 
 
 //------------------------------------------------------------------------------
 // Constructors and destructors
 //------------------------------------------------------------------------------
-//------------------------------------------------
-// Default constructor
-//------------------------------------------------
-SerialManager::SerialManager() : fd(-1)
+//----------------------------------------------------------
+// Constructors
+//----------------------------------------------------------
+SerialManager::SerialManager() : serialDev("/dev/ttyACM0")
 {
+	//--------------------------------------
+	// Debugging message
+	//--------------------------------------
+	if ( gVerbose > 1 )
+	{
+		std::cout << "[kumtdd::SerialManager] Constructed." << std::endl;
+	}
+}
+
+SerialManager::SerialManager(const std::string& dev) : serialDev(dev)
+{
+	//--------------------------------------
+	// Debugging message
+	//--------------------------------------
+	if ( gVerbose > 1 )
+	{
+		std::cout << "[kumtdd::SerialManager] Constructed." << std::endl;
+	}
 }
 
 
-//------------------------------------------------
-// Default destructor
-//------------------------------------------------
+//----------------------------------------------------------
+// Destructor
+//----------------------------------------------------------
 SerialManager::~SerialManager()
 {
-	CloseSerial();
+	//--------------------------------------
+	// Debugging message
+	//--------------------------------------
+	if ( gVerbose > 1 )
+	{
+		std::cout << "[kumtdd::SerialManager] Destructed." << std::endl;
+	}
+
+
+	isConnected = false;
+
+	if ( monitorThread . joinable() )
+	{
+		monitorThread . join();
+	}
+
+	if ( serialFd != -1 )
+	{
+		close(serialFd);
+	}
 }
 
 
+
 //------------------------------------------------------------------------------
-// Methods
+// Public methods
 //------------------------------------------------------------------------------
-//------------------------------------------------
-// Initialize serial port
-//------------------------------------------------
-bool SerialManager::Init(const char* device)
+//----------------------------------------------------------
+// Connect serial
+//----------------------------------------------------------
+bool SerialManager::Connect()
 {
-	// Open serial
-	fd = open(device, O_RDWR | O_NOCTTY | O_SYNC);
-
-	if ( fd < 0 )
+	//--------------------------------------
+	// Debugging message
+	//--------------------------------------
+	if ( gVerbose > 1 )
 	{
-		perror("serial open failed");
+		std::cout << "[kumtdd::SerialManager::Connect] Try to connect" << std::endl;
+	}
+
+	serialFd = open(serialDev . c_str(), O_RDWR | O_NOCTTY | O_SYNC);
+	if ( serialFd < 0 )
+	{
+		std::cerr << "[kumtdd::SerialManager::Connect] Failed to open " << serialDev << ": " << strerror(errno) << "\n";
 		return false;
 	}
 
-	struct termios tty;
-	if ( tcgetattr(fd, &tty) != 0 )
+	if ( ! SetupSerialPort(serialFd) )
 	{
-		perror("tcgetattr failed");
-		CloseSerial();
+		close(serialFd);
+		serialFd = -1;
 		return false;
 	}
 
-	// Baud rate is 115200 in general.
-	cfsetospeed(&tty, B115200);
-	cfsetispeed(&tty, B115200);
-
-	// tty configuration
-	tty . c_cflag = (tty.c_cflag & ~CSIZE) | CS8;
-	tty . c_iflag &= ~IGNBRK;
-	tty . c_lflag = 0;
-	tty . c_oflag = 0;
-	tty . c_cc[VMIN] = 1;
-	tty . c_cc[VTIME] = 1;
-
-	tty . c_iflag &= ~(IXON | IXOFF | IXANY);
-	tty . c_cflag |= (CLOCAL | CREAD);
-	tty . c_cflag &= ~(PARENB | PARODD);
-	tty . c_cflag &= ~CSTOPB;
-	tty . c_cflag &= ~CRTSCTS;
-
-	// Try to apply configuration
-	if ( tcsetattr(fd, TCSANOW, &tty) != 0 )
-	{
-		perror("tcsetattr failed");
-		CloseSerial();
-		return false;
-	}
+	isConnected = true;
+	monitorThread = std::thread(&SerialManager::MonitorSerial, this);
 
 	return true;
 }
 
 
-//------------------------------------------------
-// Close serial connection
-//------------------------------------------------
-void SerialManager::CloseSerial()
+//----------------------------------------------------------
+// Write a line to the serial
+//----------------------------------------------------------
+bool SerialManager::WriteLine(const std::string& line)
 {
-	if ( fd >= 0 )
+	//--------------------------------------
+	// Debugging message
+	//--------------------------------------
+	if ( gVerbose > 1 )
 	{
-		close(fd);
-		fd = -1;
+		std::cout << "[kumtdd::SerialManager::WriteLine] Writing a line \"" << line << "\" to the serial" << std::endl;
 	}
+
+	if ( serialFd < 0 ) return false;
+
+	std::string msg = line + "\r";
+	ssize_t written = write(serialFd, msg . c_str(), msg . size());
+	return written == static_cast<ssize_t>(msg . size());
 }
 
 
-//------------------------------------------------
+//----------------------------------------------------------
+// Get buffered response
+//----------------------------------------------------------
+std::optional<std::string> SerialManager::GetBufferedResponse()
+{
+	std::lock_guard<std::mutex> lock(bufferMutex);
+	if ( responseBuffer . empty() )
+	{
+		if ( gVerbose > 1 )
+		{
+			std::cout << "[kumtdd::SerialManager::GetBufferedResponse] Buffer is empty." << std::endl;
+		}
+
+		return std::nullopt;
+	}
+
+	std::string result = responseBuffer;
+	if ( gVerbose > 1 )
+	{
+		std::cout << "[kumtdd::SerialManager::GetBufferedResponse] Response: " << result << std::endl;
+	}
+	responseBuffer . clear();
+
+	return result;
+}
+
+
+//----------------------------------------------------------
 // Send ON/OFF
-//------------------------------------------------
+//----------------------------------------------------------
 bool SerialManager::SetPinStat(unsigned short int index, bool val)
 {
-	if ( fd < 0 ) return false;
+	//--------------------------------------
+	// Try set
+	//--------------------------------------
+	if ( serialFd < 0 ) return false;
 	char cmd[32];
 	snprintf(cmd, sizeof(cmd), "%s %d", val ? "ON" : "OFF", index);
 	if ( WriteLine(cmd) < 0 ) return false;
 
-	char response[64];
-	ssize_t n = ReadLine(response, sizeof(response));
-	if ( n <= 0 ) return false;
-
-	// Expecting response like "turning ON n" or "turning OFF n"
-	char expected[32];
-	snprintf(expected, sizeof(expected), "turning %s %d", val ? "ON" : "OFF", index);
-	
-	return (strncmp(response, expected, strlen(expected)) == 0);
+	//--------------------------------------
+	// Check response
+	//--------------------------------------
+	std::this_thread::sleep_for(std::chrono::milliseconds(20));
+	auto response = GetBufferedResponse();
+	if ( response )
+	{
+		char expected[32];
+		snprintf(expected, sizeof(expected), "turning %s %d", val ? "ON" : "OFF", index);
+		return response . has_value() && response . value() == expected;
+	}
+	else
+	{
+		std::cerr << "[kumtdd::SerialManager::SetPinStat] Try to set stat of pin " << index << " to " << val << ", but no response." << std::endl;
+		return false;
+	}
 }
 
 
-//------------------------------------------------
-// Ask for state and parse
-//------------------------------------------------
-bool SerialManager::GetPinStat(PinGrid& grid)
+
+//------------------------------------------------------------------------------
+// Private methods
+//------------------------------------------------------------------------------
+//----------------------------------------------------------
+// Monitor serial's return
+//----------------------------------------------------------
+void SerialManager::MonitorSerial()
 {
-	if ( fd < 0 ) return false;
-
-	const char* cmd = "PINSTAT ALL";
-	if ( WriteLine(cmd) < 0 ) return false;
-
-	// Get response
-	char response[1024];
-	ssize_t n = ReadLine(response, sizeof(response));
-	std::cout << n << std::endl;
-	if ( n <= 0 ) return false;
-
-	std::istringstream iss(response);
-	for ( int i = 0; i < 256; i++ )
+	//--------------------------------------
+	// Debugging message
+	//--------------------------------------
+	if ( gVerbose > 1 )
 	{
-		int state;
-		if ( !(iss >> state) ) return false;
-		grid . Set(i, state != 0);
+		std::cout << "[kumtdd::SerialManager::MonitorSerial] Starting serial monitoring" << std::endl;
 	}
 
+	char buf[256];
+	std::string line;
+
+	while ( isConnected )
+	{
+		ssize_t len = read(serialFd, buf, sizeof(buf));
+		if ( len > 0 )
+		{
+			for ( ssize_t i = 0; i < len; ++i )
+			{
+				if ( buf[i] == '\n' )
+				{
+					std::lock_guard<std::mutex> lock(bufferMutex);
+					responseBuffer = line;
+					if ( gVerbose > 0 ) std::cout << "[kumtdd::SerialManager::Monitor] " << line << std::endl;
+					line . clear();
+				}
+				else if (buf[i] != '\r')
+				{
+					line += buf[i];
+				}
+			}
+		}
+		else
+		{
+			std::this_thread::sleep_for(std::chrono::milliseconds(10));
+		}
+	}
+}
+
+
+//----------------------------------------------------------
+// Serial port setup
+//----------------------------------------------------------
+bool SerialManager::SetupSerialPort(int fd)
+{
+	//--------------------------------------
+	// Debugging message
+	//--------------------------------------
+	if ( gVerbose > 1 )
+	{
+		std::cout << "[kumtdd::SerialManager::SetupSerialPort] Setup serial port" << std::endl;
+	}
+
+
+	struct termios tty;
+	if ( tcgetattr(fd, &tty) != 0 )
+	{
+		std::cerr << "[kumtdd::SerialManager::SetupSerialPort] tcgetattr error: " << strerror(errno) << "\n";
+		return false;
+	}
+
+	cfmakeraw(&tty);
+	// Baud rate
+	cfsetspeed(&tty, B115200);
+
+	// Local connection, activate read
+	tty . c_cflag |= (CLOCAL | CREAD);
+
+	// deactivate RTS/CTS stream control
+	tty . c_cflag &= ~CRTSCTS;
+	tty . c_cc[VMIN] = 0;
+
+	// 0.1 sec timeout
+	tty . c_cc[VTIME] = 1;
+
+
+	if ( tcsetattr(fd, TCSANOW, &tty) != 0 )
+	{
+		std::cerr << "[kumtdd::SerialManager::SetupSerialPort] tcsetattr error: " << strerror(errno) << "\n";
+		return false;
+	}
 
 	return true;
-}
-
-
-//------------------------------------------------
-// Serial IO
-//------------------------------------------------
-// Write line
-ssize_t SerialManager::WriteLine(const char* line)
-{
-	if ( fd < 0 ) return -1;
-	size_t len = strlen(line);
-	ssize_t ret = write(fd, line, len);
-	if ( ret != (ssize_t) len ) return -1;
-	ret = write(fd, "\n", 1);
-	if ( ret != 1 ) return -1;
-	return len + 1;
-}
-
-ssize_t SerialManager::WriteLine(const std::string& line)
-{
-	return WriteLine(line . c_str());
-}
-
-// Read line
-ssize_t SerialManager::ReadLine(char* buffer, size_t maxlen)
-{
-	if ( fd < 0 || maxlen == 0 ) return -1;
-	size_t pos = 0;
-	while (pos < maxlen - 1)
-	{
-		std::cout << "hello " << pos << std::endl;
-		char c;
-		ssize_t n = read(fd, &c, 1);
-		if ( n <= 0    ) break;
-		if ( c == '\n' ) break;
-		buffer[pos++] = c;
-	}
-	buffer[pos] = '\0';
-	return pos;
-}
-
-std::string SerialManager::ReadLine()
-{
-	char buffer[512];
-	ssize_t len = ReadLine(buffer, sizeof(buffer));
-	if ( len <= 0 ) return "";
-	return std::string(buffer, len);
 }

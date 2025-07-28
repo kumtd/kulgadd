@@ -20,6 +20,7 @@
 #include <iomanip>
 #include <nlohmann/json.hpp>
 
+#include "global.hh"
 #include "PinGrid.hh"
 
 
@@ -39,6 +40,13 @@ using json = nlohmann::json;
 //------------------------------------------------
 PinGrid::PinGrid() : mRows(16), mCols(16), mPins(mRows * mCols, false)
 {
+	//--------------------------------------
+	// Debugging message
+	//--------------------------------------
+	if ( gVerbose > 1 )
+	{
+		std::cout << "[kumtdd::PinGrid] Contructed." << std::endl;
+	}
 }
 
 
@@ -47,6 +55,13 @@ PinGrid::PinGrid() : mRows(16), mCols(16), mPins(mRows * mCols, false)
 //------------------------------------------------
 PinGrid::PinGrid(unsigned short int r, unsigned short int c) : mRows(r), mCols(c), mPins(r * c, false)
 {
+	//--------------------------------------
+	// Debugging message
+	//--------------------------------------
+	if ( gVerbose > 1 )
+	{
+		std::cout << "[kumtdd::PinGrid] Contructed." << std::endl;
+	}
 }
 
 
@@ -59,7 +74,17 @@ PinGrid::PinGrid(unsigned short int r, unsigned short int c) : mRows(r), mCols(c
 //------------------------------------------------
 void PinGrid::Initialize(bool value)
 {
+	//--------------------------------------
+	// Debugging message
+	//--------------------------------------
+	if ( gVerbose > 1 )
+	{
+		std::cout << "[kumtdd::PinGrid::Initialize] Init grid" << std::endl;
+	}
+
+	//--------------------------------------
 	// Fill member vector pins with given value
+	//--------------------------------------
 	std::fill(mPins . begin(), mPins . end(), value);
 }
 
@@ -90,6 +115,14 @@ bool PinGrid::Get(unsigned short int index) const
 // By (row, column)
 void PinGrid::Set(unsigned short int row, unsigned short int col, bool value)
 {
+	//--------------------------------------
+	// Debugging message
+	//--------------------------------------
+	if ( gVerbose > 1 )
+	{
+		std::cout << "[kumtdd::PinGrid::Set] Set pin (" << row << ", " << col << ") to " << value << std::endl;
+	}
+
 	if ( !IsValidCoord(row, col) ) throw std::out_of_range("[kumtdd] PinGrid::Set: invalid row or column");
 
 	mPins[row * mCols + col] = value;
@@ -98,6 +131,14 @@ void PinGrid::Set(unsigned short int row, unsigned short int col, bool value)
 // By index
 void PinGrid::Set(unsigned short int index, bool value)
 {
+	//--------------------------------------
+	// Debugging message
+	//--------------------------------------
+	if ( gVerbose > 1 )
+	{
+		std::cout << "[kumtdd::PinGrid::Set] Set pin " << index << " to " << value << std::endl;
+	}
+
 	if ( !IsValidIndex(index) ) throw std::out_of_range("[kumtdd] PinGrid::Set: Invalid index");
 
 	mPins[index] = value;
