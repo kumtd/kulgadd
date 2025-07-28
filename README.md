@@ -4,7 +4,7 @@
 
 <!-- PROJECT LOGO -->
 <div align="center">
-  <h1 align="center">kumtdd</h1>
+  <h1 align="center">kulgadd</h1>
 
   <p align="center">
     KU LGAD daemon, a part of the system that tests LGAD sensor for CMS Endcap Timing Layer
@@ -49,7 +49,7 @@ Lorem ipsum
 
 1. `mkdir kulgadd`
 2. `cd kulgadd`
-3. git clone git@github.com:kumtd/kulgadd.git source
+3. `git clone git@github.com:kumtd/kulgadd.git source`
 4. `mkdir build`
 5. `cd build`
 6. `cmake ../source`
