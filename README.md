@@ -7,7 +7,7 @@
   <h1 align="center">kumtdd</h1>
 
   <p align="center">
-    KU MTD daemon, a part of the system that tests LGAD sensor for CMS Endcap Timing Layer
+    KU LGAD daemon, a part of the system that tests LGAD sensor for CMS Endcap Timing Layer
     <br />
   </p>
 </div>
@@ -43,11 +43,17 @@ Lorem ipsum
 
 ### Prerequisites
 
+- libwebsockets
 
 ### Build
 
-
-### Set Environment After Build
+1. `mkdir kulgadd`
+2. `cd kulgadd`
+3. git clone git@github.com:kumtd/kulgadd.git source
+4. `mkdir build`
+5. `cd build`
+6. `cmake ../source`
+7. `make install`
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -55,5 +61,7 @@ Lorem ipsum
 
 <!-- USAGE -->
 ## Usage
+
+`systemctl start kulgadd.service`
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
