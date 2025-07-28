@@ -1,20 +1,20 @@
 ////////////////////////////////////////////////////////////////////////////////
-//
-//   PinGrid.cc
-//
-//   The definition of PinGrid class.
-//
-//   Authors: Hoyong Jeong (hoyong5419@korea.ac.kr)
-//            Kyungmin Lee (  railroad@korea.ac.kr)
-//            Changi Jeong (  jchg3876@korea.ac.kr)
-//
+///
+///   PinGrid.cc
+///
+///   The definition of PinGrid class.
+///
+///   Authors: Hoyong Jeong (hoyong5419@korea.ac.kr)
+///            Kyungmin Lee (  railroad@korea.ac.kr)
+///            Changi Jeong (  jchg3876@korea.ac.kr)
+///
 ////////////////////////////////////////////////////////////////////////////////
 
 
 
-//------------------------------------------------------------------------------
-// Headers
-//------------------------------------------------------------------------------
+///-----------------------------------------------------------------------------
+/// Headers
+///-----------------------------------------------------------------------------
 #include <stdexcept>
 #include <sstream>
 #include <iomanip>
@@ -25,19 +25,19 @@
 
 
 
-//------------------------------------------------------------------------------
-// JSON namespace
-//------------------------------------------------------------------------------
+///-----------------------------------------------------------------------------
+/// JSON namespace
+///-----------------------------------------------------------------------------
 using json = nlohmann::json;
 
 
 
-//------------------------------------------------------------------------------
-// Constructors and destructors
-//------------------------------------------------------------------------------
-//------------------------------------------------
-// Default
-//------------------------------------------------
+///-----------------------------------------------------------------------------
+/// Constructors and destructors
+///-----------------------------------------------------------------------------
+///-----------------------------------------------
+/// Default
+///-----------------------------------------------
 PinGrid::PinGrid() : mRows(16), mCols(16), mPins(mRows * mCols, false)
 {
 	//--------------------------------------
@@ -50,9 +50,9 @@ PinGrid::PinGrid() : mRows(16), mCols(16), mPins(mRows * mCols, false)
 }
 
 
-//------------------------------------------------
-// Custom size
-//------------------------------------------------
+///-----------------------------------------------
+/// Custom size
+///-----------------------------------------------
 PinGrid::PinGrid(unsigned short int r, unsigned short int c) : mRows(r), mCols(c), mPins(r * c, false)
 {
 	//--------------------------------------
@@ -66,12 +66,12 @@ PinGrid::PinGrid(unsigned short int r, unsigned short int c) : mRows(r), mCols(c
 
 
 
-//------------------------------------------------------------------------------
-// Methods
-//------------------------------------------------------------------------------
-//------------------------------------------------
-// Initialize
-//------------------------------------------------
+///-----------------------------------------------------------------------------
+/// Methods
+///-----------------------------------------------------------------------------
+///-----------------------------------------------
+/// Initialize
+///-----------------------------------------------
 void PinGrid::Initialize(bool value)
 {
 	//--------------------------------------
@@ -89,10 +89,9 @@ void PinGrid::Initialize(bool value)
 }
 
 
-//------------------------------------------------
-// Get pin state
-//------------------------------------------------
-// By (row, column)
+///-----------------------------------------------
+/// Get pin state by (row, column)
+///-----------------------------------------------
 bool PinGrid::Get(unsigned short int row, unsigned short int col) const
 {
 	if ( !IsValidCoord(row, col) ) throw std::out_of_range("[kumtdd] PinGrid::Get: Invalid row or column");
@@ -100,7 +99,10 @@ bool PinGrid::Get(unsigned short int row, unsigned short int col) const
 	return mPins[row * mCols + col];
 }
 
-// By index
+
+///-----------------------------------------------
+/// Get pin state by index
+///-----------------------------------------------
 bool PinGrid::Get(unsigned short int index) const
 {
 	if ( !IsValidIndex(index) ) throw std::out_of_range("[kumtdd] PinGrid::Get: Invalid index");
@@ -109,10 +111,9 @@ bool PinGrid::Get(unsigned short int index) const
 }
 
 
-//------------------------------------------------
-// Set pin state
-//------------------------------------------------
-// By (row, column)
+///-----------------------------------------------
+/// Set pin state by (row, column)
+///-----------------------------------------------
 void PinGrid::Set(unsigned short int row, unsigned short int col, bool value)
 {
 	//--------------------------------------
@@ -128,7 +129,10 @@ void PinGrid::Set(unsigned short int row, unsigned short int col, bool value)
 	mPins[row * mCols + col] = value;
 }
 
-// By index
+
+///-----------------------------------------------
+/// Set pin state by index
+///-----------------------------------------------
 void PinGrid::Set(unsigned short int index, bool value)
 {
 	//--------------------------------------
@@ -145,10 +149,9 @@ void PinGrid::Set(unsigned short int index, bool value)
 }
 
 
-//------------------------------------------------
-// JSON handling
-//------------------------------------------------
-// Vector to JSON
+///------------------------------------------------
+/// JSON handling: vector to JSON
+///------------------------------------------------
 std::string PinGrid::ToJSONString() const
 {
 	json j;
@@ -159,7 +162,10 @@ std::string PinGrid::ToJSONString() const
 	return j . dump();
 }
 
-// JSON to vector
+
+///------------------------------------------------
+/// JSON handling: JSON to vector
+///------------------------------------------------
 bool PinGrid::FromJSONString(const std::string& jsonStr)
 {
 	try
@@ -184,9 +190,9 @@ bool PinGrid::FromJSONString(const std::string& jsonStr)
 }
 
 
-//------------------------------------------------
-// Print
-//------------------------------------------------
+///-----------------------------------------------
+/// Print
+///-----------------------------------------------
 void PinGrid::Print(std::ostream& os) const
 {
 	for ( unsigned short int i = 0; i < mRows; i++ )
@@ -200,14 +206,18 @@ void PinGrid::Print(std::ostream& os) const
 }
 
 
-//------------------------------------------------
-// Inspectors
-//------------------------------------------------
+///-----------------------------------------------
+/// Inspectors: index
+///-----------------------------------------------
 bool PinGrid::IsValidIndex(unsigned short int index) const
 {
 	return index >= 0 && index < mRows * mCols;
 }
 
+
+///-----------------------------------------------
+/// Inspectors: (row, col)
+///-----------------------------------------------
 bool PinGrid::IsValidCoord(unsigned short int row, unsigned short int col) const
 {
 	return row >= 0 && row < mRows && col >= 0 && col < mCols;
