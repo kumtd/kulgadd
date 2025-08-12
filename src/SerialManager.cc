@@ -234,6 +234,30 @@ void SerialManager::MonitorSerial()
 					responseBuffer = line;
 					if ( gVerbose > 0 ) std::cout << "[kumtdd::SerialManager::Monitor] " << line << std::endl;
 					line . clear();
+
+					//------------------
+					// Behavior
+					//------------------
+					auto responseOpt = GetBufferedResponse();
+					const std::string& responseStr = responseOpt . value();
+					const char* response = responseStr . c_str();
+					char expected[32];
+					// In case of "turning" blah blah
+					char state[4];
+					unsigned short int index;
+					if ( sscanf(response, "turning %3s %d", state, &index) == 2 )
+					{
+						if      ( strcmp(state, "ON" ) == 0 )
+						{
+							gGrid -> Set(index, true );
+							gServer -> BroadcastState();
+						}
+						else if ( strcmp(state, "OFF") == 0 )
+						{
+							gGrid -> Set(index, false);
+							gServer -> BroadcastState();
+						}
+					}
 				}
 				else if (buf[i] != '\r')
 				{

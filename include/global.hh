@@ -15,5 +15,14 @@
 #pragma once
 
 
+#include "SerialManager.hh"
+#include "WebSocketServer.hh"
+#include "PinGrid.hh"
+
+
 
 extern unsigned short int gVerbose;
+
+extern SerialManager* gSerial;
+extern WebSocketServer* gServer;
+extern PinGrid* gGrid;

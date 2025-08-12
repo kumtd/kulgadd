@@ -1,20 +1,20 @@
 ////////////////////////////////////////////////////////////////////////////////
-//
-//   WebSocketServer.cc
-//
-//   The definition of WebSocketServer class.
-//
-//   Authors: Hoyong Jeong (hoyong5419@korea.ac.kr)
-//            Kyungmin Lee (  railroad@korea.ac.kr)
-//            Changi Jeong (  jchg3876@korea.ac.kr)
-//
+///
+///   WebSocketServer.cc
+///
+///   The definition of WebSocketServer class.
+///
+///   Authors: Hoyong Jeong (hoyong5419@korea.ac.kr)
+///            Kyungmin Lee (  railroad@korea.ac.kr)
+///            Changi Jeong (  jchg3876@korea.ac.kr)
+///
 ////////////////////////////////////////////////////////////////////////////////
 
 
 
-//------------------------------------------------------------------------------
-// Headers
-//------------------------------------------------------------------------------
+///-----------------------------------------------------------------------------
+/// Headers
+///-----------------------------------------------------------------------------
 #include "global.hh"
 #include "WebSocketServer.hh"
 
@@ -24,6 +24,9 @@
 #include <thread>
 #include <nlohmann/json.hpp>
 #include <libwebsockets.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <string.h>
 
 
 
@@ -31,9 +34,9 @@ using json = nlohmann::json;
 
 
 
-//------------------------------------------------------------------------------
-// Anonymous namespace
-//------------------------------------------------------------------------------
+///-----------------------------------------------------------------------------
+/// Anonymous namespace
+///-----------------------------------------------------------------------------
 namespace
 {
 	static WebSocketServer* g_instance = nullptr;
@@ -42,6 +45,19 @@ namespace
 	{
 		switch ( reason )
 		{
+			// Reject connection if not allowed
+//			case LWS_CALLBACK_FILTER_PROTOCOL_CONNECTION:
+//			{
+//				char ipStr[128];
+//				lws_get_peer_simple(wsi, ipStr, sizeof(ipStr));
+//				if ( ! g_instance -> IsIPAllowed(ipStr) )
+//				{
+//					lwsl_user("Connection rejected from IP: %s\n", ipStr);
+//					return 1;
+//				}
+//				break;
+//			}
+
 			// New connection?
 			case LWS_CALLBACK_ESTABLISHED:
 				g_instance -> OnClientConnected(wsi);
@@ -81,12 +97,12 @@ namespace
 
 
 
-//------------------------------------------------------------------------------
-// Constructors and destructor
-//------------------------------------------------------------------------------
-//----------------------------------------------------------
-// Constructor
-//----------------------------------------------------------
+///-----------------------------------------------------------------------------
+/// Constructors and destructor
+///-----------------------------------------------------------------------------
+///---------------------------------------------------------
+/// Constructor
+///---------------------------------------------------------
 WebSocketServer::WebSocketServer(SerialManager* serial_, PinGrid* grid_) : serial(serial_), pinGrid(grid_)
 {
 	//--------------------------------------
@@ -99,9 +115,9 @@ WebSocketServer::WebSocketServer(SerialManager* serial_, PinGrid* grid_) : seria
 }
 
 
-//----------------------------------------------------------
-// Destructor
-//----------------------------------------------------------
+///---------------------------------------------------------
+/// Destructor
+///---------------------------------------------------------
 WebSocketServer::~WebSocketServer()
 {
 	//--------------------------------------
@@ -117,12 +133,12 @@ WebSocketServer::~WebSocketServer()
 
 
 
-//------------------------------------------------------------------------------
-// Public methods
-//------------------------------------------------------------------------------
-//----------------------------------------------------------
-// Start method
-//----------------------------------------------------------
+///-----------------------------------------------------------------------------
+/// Public methods
+///-----------------------------------------------------------------------------
+///---------------------------------------------------------
+/// Start method
+///---------------------------------------------------------
 bool WebSocketServer::Start(int port)
 {
 	//--------------------------------------
@@ -138,14 +154,13 @@ bool WebSocketServer::Start(int port)
 	g_instance = this;
 
 	serverThread = std::thread(&WebSocketServer::ServerLoop, this);
-//	serialMonitorThread = std::thread(&WebSocketServer::MonitorSerial, this);
 	return true;
 }
 
 
-//----------------------------------------------------------
-// Stop method
-//----------------------------------------------------------
+///---------------------------------------------------------
+/// Stop method
+///---------------------------------------------------------
 void WebSocketServer::Stop()
 {
 	if ( !isRunning ) return;
@@ -153,7 +168,6 @@ void WebSocketServer::Stop()
 
 	if ( context                          ) lws_cancel_service(context);
 	if ( serverThread . joinable()        ) serverThread . join();
-//	if ( serialMonitorThread . joinable() ) serialMonitorThread . join();
 
 	//--------------------------------------
 	// Debugging message
@@ -166,12 +180,12 @@ void WebSocketServer::Stop()
 
 
 
-//------------------------------------------------------------------------------
-// Private methods
-//------------------------------------------------------------------------------
-//----------------------------------------------------------
-// Server loop
-//----------------------------------------------------------
+///-----------------------------------------------------------------------------
+/// Private methods
+///-----------------------------------------------------------------------------
+///---------------------------------------------------------
+/// Server loop
+///---------------------------------------------------------
 void WebSocketServer::ServerLoop()
 {
 	//--------------------------------------
@@ -186,6 +200,7 @@ void WebSocketServer::ServerLoop()
 	// Create websocket context
 	//--------------------------------------
 	lws_context_creation_info info = {};
+//	info . iface = "127.0.0.1";
 	info . port = 3001;
 	info . protocols = protocols;
 	info . gid = -1;
@@ -218,9 +233,9 @@ void WebSocketServer::ServerLoop()
 }
 
 
-//----------------------------------------------------------
-// On client connected
-//----------------------------------------------------------
+///---------------------------------------------------------
+/// On client connected
+///---------------------------------------------------------
 void WebSocketServer::OnClientConnected(lws* wsi)
 {
 	//--------------------------------------
@@ -237,9 +252,9 @@ void WebSocketServer::OnClientConnected(lws* wsi)
 }
 
 
-//----------------------------------------------------------
-// On client disconnected
-//----------------------------------------------------------
+///---------------------------------------------------------
+/// On client disconnected
+///---------------------------------------------------------
 void WebSocketServer::OnClientDisconnected(lws* wsi)
 {
 	//--------------------------------------
@@ -255,9 +270,9 @@ void WebSocketServer::OnClientDisconnected(lws* wsi)
 }
 
 
-//----------------------------------------------------------
-// On client message
-//----------------------------------------------------------
+///---------------------------------------------------------
+/// On client message
+///---------------------------------------------------------
 void WebSocketServer::OnClientMessage(lws* wsi, const std::string& msg)
 {
 	//--------------------------------------
@@ -296,9 +311,9 @@ void WebSocketServer::OnClientMessage(lws* wsi, const std::string& msg)
 }
 
 
-//----------------------------------------------------------
-// Broadcast state
-//----------------------------------------------------------
+///---------------------------------------------------------
+/// Broadcast state
+///---------------------------------------------------------
 void WebSocketServer::BroadcastState()
 {
 	//--------------------------------------
@@ -320,9 +335,9 @@ void WebSocketServer::BroadcastState()
 }
 
 
-//----------------------------------------------------------
-// Send to client
-//----------------------------------------------------------
+///---------------------------------------------------------
+/// Send to client
+///---------------------------------------------------------
 void WebSocketServer::SendToClient(lws* wsi, const std::string& msg)
 {
 	//--------------------------------------
@@ -337,4 +352,22 @@ void WebSocketServer::SendToClient(lws* wsi, const std::string& msg)
 	std::vector<unsigned char> buf(LWS_PRE + len);
 	std::memcpy(&buf[LWS_PRE], msg . data(), len);
 	lws_write(wsi, &buf[LWS_PRE], len, LWS_WRITE_TEXT);
+}
+
+
+///---------------------------------------------------------
+/// Allowed IPs
+///---------------------------------------------------------
+bool WebSocketServer::IsIPAllowed(const char* ipStr)
+{
+	struct in_addr addr, net, mask;
+
+	inet_pton(AF_INET, ipStr      , &addr);
+	inet_pton(AF_INET, "127.0.0.1", &net );
+	inet_pton(AF_INET, "255.0.0.0", &mask);
+
+	//--------------------------------------
+	// Apply subnet mask and compare
+	//--------------------------------------
+	return (addr . s_addr & mask . s_addr) == (net . s_addr & mask . s_addr);
 }

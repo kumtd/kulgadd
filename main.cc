@@ -39,6 +39,10 @@ enum exit_code
 };
 unsigned short int gVerbose = 0;
 
+SerialManager* gSerial = 0;
+WebSocketServer* gServer = 0;
+PinGrid* gGrid = 0;
+
 
 
 ///-----------------------------------------------------------------------------
@@ -146,12 +150,12 @@ int main(int argc, char **argv)
 	//--------------------------------------
 	// Define serial manager
 	//--------------------------------------
-	SerialManager* serialManager = new SerialManager(dev_switch);
+	gSerial = new SerialManager();
 
 	//--------------------------------------
 	// Open serial connection
 	//--------------------------------------
-	if ( !serialManager -> Connect() )
+	if ( !gSerial -> Connect() )
 	{
 		std::cerr << "[kumtdd::main] Failed to open serial port " << dev_switch << std::endl;
 		return ERROR_SERIAL_CONN;
@@ -165,17 +169,16 @@ int main(int argc, char **argv)
 	//----------------------------------------------------------
 	// Define pin grid
 	//----------------------------------------------------------
-	PinGrid* pinGrid = new PinGrid();
+	gGrid = new PinGrid();
 
 
 	//----------------------------------------------------------
 	// Websocket 
 	//----------------------------------------------------------
-	WebSocketServer* server;
 	try
 	{
-		server = new WebSocketServer(serialManager, pinGrid);
-		server -> Start();
+		gServer = new WebSocketServer(gSerial, gGrid);
+		gServer -> Start();
 		while ( ! terminateRequested )
 		{
 			std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -191,10 +194,10 @@ int main(int argc, char **argv)
 	//----------------------------------------------------------
 	// Finalize
 	//----------------------------------------------------------
-	server -> Stop();
-	delete server;
-	delete pinGrid;
-	delete serialManager;
+	gServer -> Stop();
+	delete gServer;
+	delete gGrid;
+	delete gSerial;
 	return SUCCESS;
 }
 
