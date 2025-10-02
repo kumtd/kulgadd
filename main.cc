@@ -24,6 +24,7 @@
 #include "SerialManager.hh"
 #include "PinGrid.hh"
 #include "WebSocketServer.hh"
+#include "ScanManager.hh"
 
 
 
@@ -39,9 +40,10 @@ enum exit_code
 };
 unsigned short int gVerbose = 0;
 
-SerialManager* gSerial = 0;
+SerialManager*   gSerial = 0;
 WebSocketServer* gServer = 0;
-PinGrid* gGrid = 0;
+PinGrid*         gGrid   = 0;
+ScanManager*     gScan   = 0;
 
 
 
@@ -173,6 +175,14 @@ int main(int argc, char **argv)
 
 
 	//----------------------------------------------------------
+	// Define scan manager
+	//----------------------------------------------------------
+	gScan = new ScanManager();
+	// The script hardcoded, but will be modified later
+	gScan -> SetCMD("python3 /sw/kulgadd/dev/source/scripts/iv_all.py --Vstart 0 --Vend -50 --Vstep 1 --sensorname w5a --Icompliance 1e-5");
+
+
+	//----------------------------------------------------------
 	// Websocket 
 	//----------------------------------------------------------
 	try
@@ -195,6 +205,7 @@ int main(int argc, char **argv)
 	// Finalize
 	//----------------------------------------------------------
 	gServer -> Stop();
+	delete gScan;
 	delete gServer;
 	delete gGrid;
 	delete gSerial;

@@ -23,6 +23,7 @@
 #include <termios.h>
 #include <cstring>
 #include <iostream>
+#include <nlohmann/json.hpp>
 
 
 
@@ -240,6 +241,15 @@ void SerialManager::MonitorSerial()
 					//------------------
 					auto responseOpt = GetBufferedResponse();
 					const std::string& responseStr = responseOpt . value();
+					nlohmann::json j = nlohmann::json::parse(responseStr);
+
+					// Is it okay?
+					if ( j["ok"] == 1 )
+					{
+						std::cout << "ok" << std::endl;
+					}
+
+
 					const char* response = responseStr . c_str();
 					char expected[32];
 					// In case of "turning" blah blah
