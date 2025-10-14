@@ -1,0 +1,3 @@
+[submodule "scripts/lgad_ivcv"]
+	path = scripts/lgad_ivcv
+	url = https://github.com/railroad2/lgad_ivcv.git
