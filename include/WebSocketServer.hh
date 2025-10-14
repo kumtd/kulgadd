@@ -59,10 +59,6 @@ class WebSocketServer
 	bool Start(int port = 3000);
 	void Stop();
 
-
-	//----------------------------------------------------------
-	// Private methods
-	//----------------------------------------------------------
 	void ServerLoop();
 
 	void OnClientConnected(lws* wsi);
@@ -70,6 +66,7 @@ class WebSocketServer
 	void OnClientMessage(lws* wsi, const std::string& msg);
 	void BroadcastState();
 	void SendToClient(lws* wsi, const std::string& msg);
+	void Deliver(const std::string& msg);
 	bool IsIPAllowed(const char* ipStr);
 
 

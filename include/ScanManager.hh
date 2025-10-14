@@ -47,7 +47,7 @@ class ScanManager
 
 	void SetCMD(const std::string& cmd);
 
-	bool Start();
+	bool Start(unsigned short int mode = 0);
 	bool IsRunning();
 	void Stop(int timeout_ms = 2000);
 	std::optional<int> GetExitStatus();

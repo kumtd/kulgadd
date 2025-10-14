@@ -110,7 +110,7 @@ WebSocketServer::WebSocketServer(SerialManager* serial_, PinGrid* grid_) : seria
 	//--------------------------------------
 	if ( gVerbose > 1 )
 	{
-		std::cout << "[kumtdd::WebSocketServer] Object constructed." << std::endl;
+		std::cout << "[kulgadd::WebSocketServer] Object constructed." << std::endl;
 	}
 }
 
@@ -125,7 +125,7 @@ WebSocketServer::~WebSocketServer()
 	//--------------------------------------
 	if ( gVerbose > 1 )
 	{
-		std::cout << "[kumtdd::WebSocketServer] Object destructed." << std::endl;
+		std::cout << "[kulgadd::WebSocketServer] Object destructed." << std::endl;
 	}
 
 	Stop();
@@ -146,7 +146,7 @@ bool WebSocketServer::Start(int port)
 	//--------------------------------------
 	if ( gVerbose > 1 )
 	{
-		std::cout << "[kumtdd::WebSocketServer::Start] Starting WS server." << std::endl;
+		std::cout << "[kulgadd::WebSocketServer::Start] Starting WS server." << std::endl;
 	}
 
 	if ( isRunning ) return false;
@@ -174,7 +174,7 @@ void WebSocketServer::Stop()
 	//--------------------------------------
 	if ( gVerbose > 1 )
 	{
-		std::cout << "[kumtdd::WebSocketServer::Stop] WS server stopped." << std::endl;
+		std::cout << "[kulgadd::WebSocketServer::Stop] WS server stopped." << std::endl;
 	}
 }
 
@@ -193,7 +193,7 @@ void WebSocketServer::ServerLoop()
 	//--------------------------------------
 	if ( gVerbose > 1 )
 	{
-		std::cout << "[kumtdd::WebSocketServer::ServerLoop] Executed." << std::endl;
+		std::cout << "[kulgadd::WebSocketServer::ServerLoop] Executed." << std::endl;
 	}
 
 	//--------------------------------------
@@ -213,7 +213,7 @@ void WebSocketServer::ServerLoop()
 	//--------------------------------------
 	if ( ! context )
 	{
-		std::cerr << "[kumtdd::WebSocketServer::ServerLoop] Failed to create lws context" << std::endl;
+		std::cerr << "[kulgadd::WebSocketServer::ServerLoop] Failed to create lws context" << std::endl;
 		return;
 	}
 
@@ -243,7 +243,7 @@ void WebSocketServer::OnClientConnected(lws* wsi)
 	//--------------------------------------
 	if ( gVerbose > 1 )
 	{
-		std::cout << "[kumtdd::WebSocketServer::OnClientConnected] Greetings to the new client and send the current stat" << std::endl;
+		std::cout << "[kulgadd::WebSocketServer::OnClientConnected] Greetings to the new client and send the current stat" << std::endl;
 	}
 
 	std::lock_guard<std::mutex> lock(clientMutex);
@@ -262,7 +262,7 @@ void WebSocketServer::OnClientDisconnected(lws* wsi)
 	//--------------------------------------
 	if ( gVerbose > 1 )
 	{
-		std::cout << "[kumtdd::WebSocketServer::OnClientConnected] Goodbye my client" << std::endl;
+		std::cout << "[kulgadd::WebSocketServer::OnClientConnected] Goodbye my client" << std::endl;
 	}
 
 	std::lock_guard<std::mutex> lock(clientMutex);
@@ -280,13 +280,13 @@ void WebSocketServer::OnClientMessage(lws* wsi, const std::string& msg)
 	//--------------------------------------
 	if ( gVerbose > 1 )
 	{
-		std::cout << "[kumtdd::WebSocketServer::OnClientMessage] A message received from a client: " << msg << std::endl;
+		std::cout << "[kulgadd::WebSocketServer::OnClientMessage] A message received from a client: " << msg << std::endl;
 	}
 
 	try
 	{
 		auto j = json::parse(msg);
-		if ( j . contains("cmd") && j["cmd"] == "set" )
+		if ( j . contains("cmd") && j["cmd"] . is_string() && j["cmd"] == "set" )
 		{
 			int ch = j["ch"];
 			bool val = j["val"];
@@ -299,7 +299,30 @@ void WebSocketServer::OnClientMessage(lws* wsi, const std::string& msg)
 				}
 				else
 				{
-					std::cerr << "[kumtdd::WebSocketServer::OnClientMessage] Fail to set pin stat via serial" << std::endl;
+					std::cerr << "[kulgadd::WebSocketServer::OnClientMessage] Fail to set pin stat via serial" << std::endl;
+				}
+			}
+		}
+		else if ( j . contains("cmd") && j["cmd"] . is_string() && j["cmd"] == "get" )
+		{
+			serial -> WriteLine("PINSTAT all");
+		}
+		else if ( j . contains("cmd") && j["cmd"] . is_string() && j["cmd"] == "scan" )
+		{
+			// Dryrun
+			if ( j . contains("mode") && j["mode"] . is_string() )
+			{
+				if      ( j["mode"] == "dryrun" )
+				{
+					if ( gVerbose > 1 ) std::cout << "[kulgadd::SerialManager::Monitor] Scan started with dryrun option" << std::endl;
+					gScan -> Start(1);
+					gScan -> Wait();
+				}
+				else if ( j["mode"] == "normal" )
+				{
+					if ( gVerbose > 1 ) std::cout << "[kulgadd::SerialManager::Monitor] Scan started with normal option" << std::endl;
+					gScan -> Start(0);
+					gScan -> Wait();
 				}
 			}
 		}
@@ -321,7 +344,7 @@ void WebSocketServer::BroadcastState()
 	//--------------------------------------
 	if ( gVerbose > 1 )
 	{
-		std::cout << "[kumtdd::WebSocketServer::BroadcastState] Broadcasting" << std::endl;
+		std::cout << "[kulgadd::WebSocketServer::BroadcastState] Broadcasting" << std::endl;
 	}
 
 	std::lock_guard<std::mutex> lock(clientMutex);
@@ -345,13 +368,27 @@ void WebSocketServer::SendToClient(lws* wsi, const std::string& msg)
 	//--------------------------------------
 	if ( gVerbose > 1 )
 	{
-		std::cout << "[kumtdd::WebSocketServer::SendToClient] Sending message" << std::endl;
+		std::cout << "[kulgadd::WebSocketServer::SendToClient] Sending message" << std::endl;
 	}
 
 	size_t len = msg . size();
 	std::vector<unsigned char> buf(LWS_PRE + len);
 	std::memcpy(&buf[LWS_PRE], msg . data(), len);
 	lws_write(wsi, &buf[LWS_PRE], len, LWS_WRITE_TEXT);
+}
+
+
+///---------------------------------------------------------
+/// Deliver
+///---------------------------------------------------------
+void WebSocketServer::Deliver(const std::string& msg)
+{
+	for ( lws* wsi : clients )
+	{
+		SendToClient(wsi, msg);
+	}
+
+	return;
 }
 
 

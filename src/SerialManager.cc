@@ -40,7 +40,7 @@ SerialManager::SerialManager() : serialDev("/dev/ttyACM0")
 	//--------------------------------------
 	if ( gVerbose > 1 )
 	{
-		std::cout << "[kumtdd::SerialManager] Constructed." << std::endl;
+		std::cout << "[kulgadd::SerialManager] Constructed." << std::endl;
 	}
 }
 
@@ -51,7 +51,7 @@ SerialManager::SerialManager(const std::string& dev) : serialDev(dev)
 	//--------------------------------------
 	if ( gVerbose > 1 )
 	{
-		std::cout << "[kumtdd::SerialManager] Constructed." << std::endl;
+		std::cout << "[kulgadd::SerialManager] Constructed." << std::endl;
 	}
 }
 
@@ -66,7 +66,7 @@ SerialManager::~SerialManager()
 	//--------------------------------------
 	if ( gVerbose > 1 )
 	{
-		std::cout << "[kumtdd::SerialManager] Destructed." << std::endl;
+		std::cout << "[kulgadd::SerialManager] Destructed." << std::endl;
 	}
 
 
@@ -98,13 +98,13 @@ bool SerialManager::Connect()
 	//--------------------------------------
 	if ( gVerbose > 1 )
 	{
-		std::cout << "[kumtdd::SerialManager::Connect] Try to connect" << std::endl;
+		std::cout << "[kulgadd::SerialManager::Connect] Try to connect" << std::endl;
 	}
 
 	serialFd = open(serialDev . c_str(), O_RDWR | O_NOCTTY | O_SYNC);
 	if ( serialFd < 0 )
 	{
-		std::cerr << "[kumtdd::SerialManager::Connect] Failed to open " << serialDev << ": " << strerror(errno) << "\n";
+		std::cerr << "[kulgadd::SerialManager::Connect] Failed to open " << serialDev << ": " << strerror(errno) << "\n";
 		return false;
 	}
 
@@ -132,14 +132,15 @@ bool SerialManager::WriteLine(const std::string& line)
 	//--------------------------------------
 	if ( gVerbose > 1 )
 	{
-		std::cout << "[kumtdd::SerialManager::WriteLine] Writing a line \"" << line << "\" to the serial" << std::endl;
+		std::cout << "[kulgadd::SerialManager::WriteLine] Writing a line \"" << line << "\" to the serial" << std::endl;
 	}
 
 	if ( serialFd < 0 ) return false;
 
-	std::string msg = line + "\r";
+	std::string msg = line + "\n";
 	ssize_t written = write(serialFd, msg . c_str(), msg . size());
 	return written == static_cast<ssize_t>(msg . size());
+//	return true;
 }
 
 
@@ -153,7 +154,7 @@ std::optional<std::string> SerialManager::GetBufferedResponse()
 	{
 		if ( gVerbose > 1 )
 		{
-			std::cout << "[kumtdd::SerialManager::GetBufferedResponse] Buffer is empty." << std::endl;
+			std::cout << "[kulgadd::SerialManager::GetBufferedResponse] Buffer is empty." << std::endl;
 		}
 
 		return std::nullopt;
@@ -162,7 +163,7 @@ std::optional<std::string> SerialManager::GetBufferedResponse()
 	std::string result = responseBuffer;
 	if ( gVerbose > 1 )
 	{
-		std::cout << "[kumtdd::SerialManager::GetBufferedResponse] Response: " << result << std::endl;
+		std::cout << "[kulgadd::SerialManager::GetBufferedResponse] Response: " << result << std::endl;
 	}
 	responseBuffer . clear();
 
@@ -180,7 +181,13 @@ bool SerialManager::SetPinStat(unsigned short int index, bool val)
 	//--------------------------------------
 	if ( serialFd < 0 ) return false;
 	char cmd[32];
+
+	// ASCII version
 	snprintf(cmd, sizeof(cmd), "%s %d", val ? "ON" : "OFF", index);
+
+	// JSON version
+//	snprintf(cmd, );
+
 	if ( WriteLine(cmd) < 0 ) return false;
 
 	//--------------------------------------
@@ -196,7 +203,7 @@ bool SerialManager::SetPinStat(unsigned short int index, bool val)
 	}
 	else
 	{
-		std::cerr << "[kumtdd::SerialManager::SetPinStat] Try to set stat of pin " << index << " to " << val << ", but no response." << std::endl;
+		std::cerr << "[kulgadd::SerialManager::SetPinStat] Try to set stat of pin " << index << " to " << val << ", but no response." << std::endl;
 		return false;
 	}
 }
@@ -216,7 +223,7 @@ void SerialManager::MonitorSerial()
 	//--------------------------------------
 	if ( gVerbose > 1 )
 	{
-		std::cout << "[kumtdd::SerialManager::MonitorSerial] Starting serial monitoring" << std::endl;
+		std::cout << "[kulgadd::SerialManager::MonitorSerial] Starting serial monitoring" << std::endl;
 	}
 
 	char buf[256];
@@ -231,9 +238,12 @@ void SerialManager::MonitorSerial()
 			{
 				if ( buf[i] == '\n' )
 				{
-					std::lock_guard<std::mutex> lock(bufferMutex);
-					responseBuffer = line;
-					if ( gVerbose > 0 ) std::cout << "[kumtdd::SerialManager::Monitor] " << line << std::endl;
+					{
+						std::lock_guard<std::mutex> lock(bufferMutex);
+						responseBuffer = line;
+					}
+					if ( gVerbose > 0 ) std::cout << "[kulgadd::SerialManager::Monitor] " << line << std::endl;
+					gServer -> Deliver(line);
 					line . clear();
 
 					//------------------
@@ -244,32 +254,48 @@ void SerialManager::MonitorSerial()
 					nlohmann::json j = nlohmann::json::parse(responseStr);
 
 					// Is it okay?
-					if ( j["ok"] == 1 )
+					if ( j["ok"] . get<int>() == 1 )
 					{
-						std::cout << "ok" << std::endl;
-					}
-
-
-					const char* response = responseStr . c_str();
-					char expected[32];
-					// In case of "turning" blah blah
-					char state[4];
-					unsigned short int index;
-					if ( sscanf(response, "turning %3s %d", state, &index) == 2 )
-					{
-						if      ( strcmp(state, "ON" ) == 0 )
+						// When pinstat asked
+						if ( j . contains("pins") )
 						{
-							gGrid -> Set(index, true );
+							std::vector<int> pins = j["pins"] . get<std::vector<int>>();
+							for ( unsigned short int pin = 0; pin < pins. size(); pin++ )
+							{
+								if      ( pins[pin] == 1 ) gGrid -> Set(pin, true );
+								else if ( pins[pin] == 0 ) gGrid -> Set(pin, false);
+							}
 							gServer -> BroadcastState();
 						}
-						else if ( strcmp(state, "OFF") == 0 )
+
+						// When ON command
+						if ( j . contains("cmd") && j["cmd"] . is_string() && j["cmd"] == "ON" )
 						{
-							gGrid -> Set(index, false);
-							gServer -> BroadcastState();
+							if ( j . contains("results") && j["results"] . is_array() )
+							{
+								for ( const auto& item : j["results"] )
+								{
+									int pin = item . value("pin", -1);
+									gGrid -> Set(pin, true);
+								}
+							}
+						}
+
+						// When OFF command
+						if ( j . contains("cmd") && j["cmd"] . is_string() && j["cmd"] == "OFF" )
+						{
+							if ( j . contains("results") && j["results"] . is_array() )
+							{
+								for ( const auto& item : j["results"] )
+								{
+									int pin = item . value("pin", -1);
+									gGrid -> Set(pin, false);
+								}
+							}
 						}
 					}
 				}
-				else if (buf[i] != '\r')
+				else if (buf[i] != '\n')
 				{
 					line += buf[i];
 				}
@@ -293,14 +319,14 @@ bool SerialManager::SetupSerialPort(int fd)
 	//--------------------------------------
 	if ( gVerbose > 1 )
 	{
-		std::cout << "[kumtdd::SerialManager::SetupSerialPort] Setup serial port" << std::endl;
+		std::cout << "[kulgadd::SerialManager::SetupSerialPort] Setup serial port" << std::endl;
 	}
 
 
 	struct termios tty;
 	if ( tcgetattr(fd, &tty) != 0 )
 	{
-		std::cerr << "[kumtdd::SerialManager::SetupSerialPort] tcgetattr error: " << strerror(errno) << "\n";
+		std::cerr << "[kulgadd::SerialManager::SetupSerialPort] tcgetattr error: " << strerror(errno) << "\n";
 		return false;
 	}
 
@@ -321,7 +347,7 @@ bool SerialManager::SetupSerialPort(int fd)
 
 	if ( tcsetattr(fd, TCSANOW, &tty) != 0 )
 	{
-		std::cerr << "[kumtdd::SerialManager::SetupSerialPort] tcsetattr error: " << strerror(errno) << "\n";
+		std::cerr << "[kulgadd::SerialManager::SetupSerialPort] tcsetattr error: " << strerror(errno) << "\n";
 		return false;
 	}
 

@@ -15,8 +15,10 @@
 ///-----------------------------------------------------------------------------
 /// Headers
 ///-----------------------------------------------------------------------------
-#include "ScanManager.hh"
 #include <nlohmann/json.hpp>
+
+#include "ScanManager.hh"
+#include "global.hh"
 
 
 
@@ -33,11 +35,20 @@ using json = nlohmann::json;
 ScanManager::ScanManager()
 	: pid_(-1), running(false), stdout_fd(-1), stderr_fd(-1)
 {
+	if ( gVerbose > 1 )
+	{
+		std::cout << "[kulgadd::ScanManager] Contructed." << std::endl;
+	}
 }
 
 
 ScanManager::~ScanManager()
 {
+	if ( gVerbose > 1 )
+	{
+		std::cout << "[kulgadd::ScanManager] Detructed." << std::endl;
+	}
+
 	try
 	{
 		Stop();
@@ -59,6 +70,11 @@ ScanManager::~ScanManager()
 ///---------------------------------------------------------
 void ScanManager::SetCMD(const std::string& cmd)
 {
+	if ( gVerbose > 1 )
+	{
+		std::cout << "[kulgadd::ScanManager::SetCMD] Set command to: " << cmd << std::endl;
+	}
+
     command = cmd;
 }
 
@@ -66,9 +82,26 @@ void ScanManager::SetCMD(const std::string& cmd)
 ///---------------------------------------------------------
 /// Start process
 ///---------------------------------------------------------
-bool ScanManager::Start()
+bool ScanManager::Start(unsigned short int mode)
 {
-	if ( running . load() ) return false;
+	if ( gVerbose > 1 )
+	{
+		std::cout << "[kulgadd::ScanManager::Start] Start scanning" << std::endl;
+	}
+
+	if      ( mode == 0 ) SetCMD("python3 /sw/kulgadd/dev/source/scripts/iv_all.py --Vstart 0 --Vend -50 --Vstep 1 --sensorname w5a --Icompliance 1e-5");
+	else if ( mode == 1 ) SetCMD("python3 /sw/kulgadd/dev/source/scripts/iv_all.py --dryrun");
+
+
+	if ( running . load() )
+	{
+		if ( gVerbose > 1 )
+		{
+			std::cout << "[kulgadd::ScanManager::Start] Already running" << std::endl;
+		}
+
+		return false;
+	}
 
 	int outpipe[2];
 	int errpipe[2];
@@ -103,7 +136,7 @@ bool ScanManager::Start()
 
 		setpgid(0, 0);
 
-		execl("/bin/sh", "sh", "-c", command.c_str(), (char*)nullptr);
+		execl("/bin/bash", "bash", "-c", command . c_str(), (char*) nullptr);
 		_exit(127); // exec failed
 	}
 
